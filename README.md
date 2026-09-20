@@ -24,6 +24,9 @@ A powerful Unity Editor tool that automatically compresses textures for differen
 
 Go to **Window → Texture Compressor** in the Unity Editor menu bar.
 
+<img width="327" height="405" alt="image" src="https://github.com/user-attachments/assets/bb7ede6f-3b44-4df6-aee0-543a40ac9965" />
+<img width="763" height="786" alt="image" src="https://github.com/user-attachments/assets/b4ba0862-6ad8-4c24-b790-1d41fa73168e" />
+
 ### Step-by-Step Guide
 
 #### 1. **Configure Compression Settings**
