@@ -1,83 +1,53 @@
 # 🎯 Texture Compression Tool for Unity
 
-A powerful Unity Editor tool that automatically compresses textures for different platforms with customizable settings. Perfect for optimizing your project for mobile and PC builds.
+A Unity Editor tool that compresses and downscales textures per platform (Android and PC) in one click. Scan a GameObject or the whole project, review what will change, and apply.
+
+<img width="327" height="405" alt="Texture Compression Tool window" src="https://github.com/user-attachments/assets/bb7ede6f-3b44-4df6-aee0-543a40ac9965" />
+<img width="763" height="786" alt="Texture list and results" src="https://github.com/user-attachments/assets/b4ba0862-6ad8-4c24-b790-1d41fa73168e" />
 
 ## ✨ Features
 
-- 📱 **Multi-platform compression** - Separate settings for Android and PC
-- 🔍 **Smart texture scanning** - Find textures in specific GameObjects or entire project
-- 🚫 **Skip already compressed** - Won't overwrite existing compression unless forced
-- ⚡ **Real-time compression** - See space savings before and after
-- 📊 **Detailed statistics** - Shows which textures were processed and skipped
-- 🎮 **UI component support** - Works with Image, RawImage, Sprites, and Meshes
-- 💾 **Space calculation** - Estimates storage usage per platform
+- 📱 **Per-platform settings**: separate max sizes for Android and PC
+- 🔍 **Flexible scanning**: a GameObject and its children, or the entire project
+- 🧠 **Smart Force mode**: recompresses oversized textures, leaves the rest untouched
+- 👀 **Live preview**: every texture shows what will happen to it before you compress
+- 📊 **Clear report**: textures processed vs. skipped, space saved, per-platform estimates
+- 🎮 **Wide component support**: MeshRenderer, SkinnedMeshRenderer, SpriteRenderer, Image, RawImage
+- 🧩 **Complex shader friendly**: works with shaders that have hundreds of properties (e.g. VRChat Toon Standard) without console errors
 
 ## 🚀 Installation
 
-1. Download the `TextureCompressionTool.unitypackage`
-2. Import it into your Unity project (drag and drop or Assets > Import Package)
-3. The tool will be installed in `Assets/Editor/TextureCompressionTool/`
+1. Import `TextureCompressionTool.unitypackage` (drag and drop, or **Assets → Import Package → Custom Package**)
+2. The tool is installed in `Assets/Editor/TextureCompressionTool/`
+
+Or copy `TextureCompressionTool.cs` into any `Editor` folder.
+
+Requires **Unity 2019.4+** (tested on Unity 2022 LTS).
 
 ## 📖 How to Use
 
-### Opening the Tool
+Open **Window → Texture Compression Tool**.
 
-Go to **Window → Texture Compressor** in the Unity Editor menu bar.
+1. **Set max sizes**: Android (256 / 512 / 1024) and PC (1024 / 2048 / 4096), or type a custom value.
+2. **Choose the search mode**:
+   - **Selection**: assign a GameObject; its children are included.
+   - **All Project**: every texture in `Assets` (packages are ignored).
+3. **Scan**: click **SCAN GAMEOBJECT** or **SCAN TEXTURES**.
+4. **Review the list**: each texture shows its resolution, file size, path, and what will happen to it.
+5. **Compress**: click **COMPRESS NOW** and confirm.
 
-<img width="327" height="405" alt="image" src="https://github.com/user-attachments/assets/bb7ede6f-3b44-4df6-aee0-543a40ac9965" />
-<img width="763" height="786" alt="image" src="https://github.com/user-attachments/assets/b4ba0862-6ad8-4c24-b790-1d41fa73168e" />
+## ⚙️ Compression Behavior
 
-### Step-by-Step Guide
+| Force Compress | Uncompressed texture | Compressed, **above** max size | Compressed, **at or below** max size |
+|---|---|---|---|
+| **OFF** (default) | Compressed | Skipped | Skipped |
+| **ON** | Compressed | Recompressed to the selected max | Untouched |
 
-#### 1. **Configure Compression Settings**
-   - Click on "Compression Settings" to expand the options
-   - Set **Android Max Size**: Choose from 256px, 512px, or 1024px (or enter custom value)
-   - Set **PC Max Size**: Choose from 1024px, 2048px, or 4096px (or enter custom value)
-   - Toggle **Force Compress** if you want to override existing compression settings
+- Android and PC are evaluated **independently**. A texture that exceeds the limit only on one platform is only recompressed for that platform.
+- "Size" is the smaller of the importer's Max Size and the original file resolution, so a small source image is never treated as oversized.
+- Applied settings: **Android** ASTC 6x6, **PC** DXT5, quality 100.
 
-#### 2. **Select Search Mode**
-   - **Selection**: Compress textures from a specific GameObject and all its children
-     - Select a GameObject in the Hierarchy
-     - Assign it in the tool's GameObject field
-   - **All Project**: Compress all textures in your entire project
-
-#### 3. **Scan for Textures**
-   - Click **🔍 SCAN GAMEOBJECT** or **🔍 SCAN TEXTURES** depending on your selection
-   - Wait for the scan to complete
-   - Review the found textures in the list
-
-#### 4. **Review Textures**
-   - Each texture shows:
-     - Resolution (e.g., 1024px)
-     - Current file weight (MB)
-     - File path in your project
-     - Compression status (Already Compressed ✓ or Uncompressed)
-
-#### 5. **Compress**
-   - Click **⚡ COMPRESS NOW**
-   - Confirm the compression in the dialog
-   - Wait for the process to complete
-   - View the results showing space saved
-
-## ⚙️ Configuration Options
-
-### Android Settings
-- **256px** - Minimal quality, smallest file size (UI textures, icons)
-- **512px** - Recommended for mobile (textures, sprites)
-- **1024px** - High quality, larger file size
-
-### PC Settings
-- **1024px** - Standard quality for desktop
-- **2048px** - High quality
-- **4096px** - Ultra-high quality
-
-### Force Compress Toggle
-- **OFF** (default) - Only compresses uncompressed textures
-- **ON** - Overwrites all existing compression settings (⚠️ Use with caution)
-
-## 📊 Understanding the Results
-
-After compression, you'll see:
+## 📊 Results
 
 ```
 ✅ Compression Complete
@@ -93,90 +63,46 @@ Space saved: 92.58 MB (73.8%)
 🖥️ PC (1024px): ~31.45 MB
 ```
 
-- **Textures processed**: Number of textures that were compressed
-- **Textures skipped**: Already compressed textures (when Force Compress is OFF)
-- **Space saved**: Reduction in file size with percentage
-- **Platform estimates**: Approximate build size per platform
+Platform figures are estimates based on the selected max size.
 
-## 🎮 Supported Components
+## 💡 Tips
 
-The tool scans and compresses textures from:
-- ✓ MeshRenderer (3D models)
-- ✓ SkinnedMeshRenderer (Rigged models, avatars)
-- ✓ SpriteRenderer (2D sprites)
-- ✓ Image (UI elements)
-- ✓ RawImage (Raw textures in UI)
-- ✓ Materials with multiple texture properties
-
-## 💡 Pro Tips
-
-1. **Backup First** - Always backup your project before bulk compression
-2. **Test on Device** - Test compressed assets on actual target devices
-3. **Use Selection Mode** - Start with specific GameObjects to test compression
-4. **Check Console** - Any warnings or errors will appear in the Console
-5. **Platform Specific** - Compression is applied per-platform, not universal
-6. **Custom Sizes** - You can enter any texture size, not just the presets
-
-## 🔧 Advanced Usage
-
-### VRChat/Custom Shaders
-The tool automatically handles complex shaders with many properties. It will:
-- Skip properties that don't exist
-- Silently ignore missing texture references
-- Continue processing all valid textures
-
-### Large Projects
-For very large projects:
-1. Use **Selection Mode** to compress assets in batches
-2. This prevents timeouts and makes issues easier to spot
-3. Monitor the Console during processing
-
-## 📦 What Gets Compressed
-
-The tool looks for these common texture properties:
-- `_MainTex` - Primary color texture
-- `_NormalMap` / `_BumpMap` - Normal maps
-- `_MetallicGlossMap` - Metallic/glossiness data
-- `_OcclusionMap` - Ambient occlusion
-- `_EmissionMap` - Self-illuminated areas
-- And many more...
+- **Back up or commit first** before running on a whole project.
+- Start with **Selection** mode on one object to check the result.
+- Test compressed assets on a real target device.
 
 ## ⚠️ Important Notes
 
-- **Non-destructive**: Original texture files aren't deleted, only import settings changed
-- **Reimport required**: Textures are automatically reimported after compression
-- **Platform-specific**: Android and PC can have different compression formats
-- **Reversible**: You can change settings back anytime in Texture Import settings
+- **Non-destructive**: original texture files are never modified, only their import settings.
+- Changes can be reverted anytime from each texture's **Import Settings**.
+- The scan only reads materials. It does not instantiate or modify anything in your scene.
 
 ## 🐛 Troubleshooting
 
-### No textures found
-- Make sure you selected a GameObject that actually has renderers
-- Check that textures exist in your project (not in Packages folder)
-- Try the "All Project" mode to ensure textures are being detected
+**No textures found**
+Make sure the GameObject has renderers and that its textures live in `Assets` (not in Packages). Try **All Project** mode to confirm textures are detected.
 
-### Compression doesn't look right
-- Verify the max size isn't too small for your texture resolution
-- Check the Texture Import settings for any overrides
-- Test with "Force Compress" OFF first
+**A texture wasn't changed**
+With Force OFF, already-compressed textures are skipped. With Force ON, textures at or below the selected max are intentionally left as they are. Check the status line in the list.
 
-### Console errors about missing properties
-- These are normal for custom shaders (VRChat, etc.)
-- The tool ignores them automatically
-- All valid textures will still be processed
+**Compression doesn't look right**
+Your max size may be too low for that texture. Adjust it and run again with Force ON, or review the texture's Import Settings.
 
-## 📝 License
+## 📝 Changelog
+
+### v1.0.1
+- **Force Compress now downscales oversized textures** that are already compressed; compressed textures within the max size are left untouched.
+- Per-platform evaluation and live per-texture status in the list.
+- Fixed console errors ("doesn't have a texture property") on complex shaders by reading only real texture properties.
+- Fixed a bug where scanning created temporary material instances, which could leave objects with missing materials after saving or building.
+
+### v1.0.0
+- Initial release.
+
+## 📄 License
 
 This tool is provided as-is for Unity project optimization.
 
-## 🙌 Version
-
-**Texture Compression Tool v1.0.0**
-- Compatible with Unity 2019.4+
-- Tested on Unity 2022 LTS
-
 ---
 
-**Made with ❤️ for optimizing your Unity projects**
-
-Questions or issues? Check the Console for detailed messages during operation.
+Made with ❤️ for optimizing your Unity projects.
