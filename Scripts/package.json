@@ -1,6 +1,6 @@
 {
   "name": "com.xerik444x.texture-compression-tool",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "displayName": "Texture Compression Tool",
   "description": "Herramienta para comprimir texturas automáticamente para Android (512px) y PC (1024px)",
   "unity": "2022",
