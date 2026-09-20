@@ -66,7 +66,7 @@ public class TextureCompressionTool : EditorWindow
             forceCompress = EditorGUILayout.Toggle("Force Compress", forceCompress);
             if (forceCompress)
             {
-                EditorGUILayout.HelpBox("⚠️ Warning: Will overwrite existing compression settings", MessageType.Warning);
+                EditorGUILayout.HelpBox("⚠️ Force: compresses uncompressed textures AND already-compressed ones whose size exceeds the max above. Compressed textures at or below the max are left untouched.", MessageType.Warning);
             }
             else
             {
@@ -143,14 +143,7 @@ public class TextureCompressionTool : EditorWindow
                 EditorGUILayout.LabelField($"Weight: {tex.currentWeightMB:F2} MB", EditorStyles.miniLabel);
                 EditorGUILayout.LabelField($"Path: {tex.path}", EditorStyles.miniLabel);
                 
-                if (tex.isCompressed)
-                {
-                    EditorGUILayout.LabelField("Status: Already Compressed ✓", EditorStyles.miniLabel);
-                }
-                else
-                {
-                    EditorGUILayout.LabelField("Status: Uncompressed", EditorStyles.miniLabel);
-                }
+                EditorGUILayout.LabelField(GetStatusText(tex), EditorStyles.miniLabel);
                 
                 EditorGUILayout.EndVertical();
                 
@@ -330,26 +323,101 @@ public class TextureCompressionTool : EditorWindow
 
         if (textures.Exists(t => t.path == assetPath)) return;
 
-        TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
-        bool isCompressed = false;
+        textures.Add(BuildTextureInfo(assetPath, texture));
+    }
 
+    private TextureInfo BuildTextureInfo(string assetPath, Texture2D texture)
+    {
+        TextureInfo info = new TextureInfo
+        {
+            path = assetPath,
+            name = texture.name,
+            currentSize = Mathf.Max(texture.width, texture.height),
+            sourceSize = Mathf.Max(texture.width, texture.height),
+            currentWeightMB = new FileInfo(assetPath).Length / (1024f * 1024f)
+        };
+
+        TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
         if (importer != null)
         {
             TextureImporterPlatformSettings androidSettings = importer.GetPlatformTextureSettings("Android");
             TextureImporterPlatformSettings pcSettings = importer.GetPlatformTextureSettings("Standalone");
 
-            isCompressed = (androidSettings.overridden || pcSettings.overridden);
+            info.androidOverridden = androidSettings.overridden;
+            info.androidMax = androidSettings.maxTextureSize;
+            info.pcOverridden = pcSettings.overridden;
+            info.pcMax = pcSettings.maxTextureSize;
+            info.isCompressed = androidSettings.overridden || pcSettings.overridden;
+            info.sourceSize = GetSourceSize(importer, texture);
         }
 
-        FileInfo fileInfo = new FileInfo(assetPath);
-        textures.Add(new TextureInfo
+        return info;
+    }
+
+    // Tamano real del archivo original (no el ya reducido por el Max Size del importer).
+    private static int GetSourceSize(TextureImporter importer, Texture2D fallback)
+    {
+        try
         {
-            path = assetPath,
-            name = texture.name,
-            currentSize = Mathf.Max(texture.width, texture.height),
-            currentWeightMB = fileInfo.Length / (1024f * 1024f),
-            isCompressed = isCompressed
-        });
+            var method = typeof(TextureImporter).GetMethod(
+                "GetWidthAndHeight",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+
+            if (method != null)
+            {
+                object[] args = new object[] { 0, 0 };
+                method.Invoke(importer, args);
+                return Mathf.Max((int)args[0], (int)args[1]);
+            }
+        }
+        catch { }
+
+        return Mathf.Max(fallback.width, fallback.height);
+    }
+
+    // Una plataforma necesita compresion si:
+    //  - no tiene override (sin comprimir), o
+    //  - ya tiene override pero su tamano efectivo supera el maximo elegido.
+    private static bool PlatformNeedsCompression(bool overridden, int importerMax, int sourceSize, int targetMax)
+    {
+        if (!overridden) return true;
+        int effectiveSize = Mathf.Min(importerMax, sourceSize);
+        return effectiveSize > targetMax;
+    }
+
+    private void GetPlatformsToProcess(TextureInfo tex, out bool android, out bool pc)
+    {
+        if (!forceCompress)
+        {
+            // Modo normal: se salta cualquier textura que ya tenga compresion.
+            android = !tex.isCompressed;
+            pc = !tex.isCompressed;
+            return;
+        }
+
+        // Modo Force: solo se toca lo que no esta comprimido o supera el maximo.
+        android = PlatformNeedsCompression(tex.androidOverridden, tex.androidMax, tex.sourceSize, androidMaxSize);
+        pc = PlatformNeedsCompression(tex.pcOverridden, tex.pcMax, tex.sourceSize, pcMaxSize);
+    }
+
+    private string GetStatusText(TextureInfo tex)
+    {
+        GetPlatformsToProcess(tex, out bool android, out bool pc);
+
+        if (!tex.isCompressed)
+        {
+            return "Status: Uncompressed → will be compressed";
+        }
+
+        if (!android && !pc)
+        {
+            return forceCompress
+                ? "Status: Compressed, within max size → untouched ✓"
+                : "Status: Already Compressed ✓ → will be skipped";
+        }
+
+        string targets = android && pc ? "Android + PC" : (android ? "Android" : "PC");
+        return $"Status: Compressed but exceeds max → will be recompressed ({targets})";
     }
 
     private void ScanAllProjectTextures()
@@ -367,26 +435,7 @@ public class TextureCompressionTool : EditorWindow
             
             if (tex != null && !path.Contains("Packages"))
             {
-                TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
-                bool isCompressed = false;
-
-                if (importer != null)
-                {
-                    TextureImporterPlatformSettings androidSettings = importer.GetPlatformTextureSettings("Android");
-                    TextureImporterPlatformSettings pcSettings = importer.GetPlatformTextureSettings("Standalone");
-
-                    isCompressed = (androidSettings.overridden || pcSettings.overridden);
-                }
-
-                FileInfo fileInfo = new FileInfo(path);
-                textures.Add(new TextureInfo
-                {
-                    path = path,
-                    name = tex.name,
-                    currentSize = Mathf.Max(tex.width, tex.height),
-                    currentWeightMB = fileInfo.Length / (1024f * 1024f),
-                    isCompressed = isCompressed
-                });
+                textures.Add(BuildTextureInfo(path, tex));
             }
 
             EditorUtility.DisplayProgressBar("Scanning", $"Processing {path}...", (float)i / guids.Length);
@@ -405,24 +454,17 @@ public class TextureCompressionTool : EditorWindow
         foreach (var tex in textures)
         {
             totalBefore += tex.currentWeightMB;
-            if (tex.isCompressed && !forceCompress)
-            {
-                skippedCount++;
-            }
-            else
-            {
-                compressedCount++;
-            }
+            GetPlatformsToProcess(tex, out bool a, out bool p);
+            if (a || p) compressedCount++;
+            else skippedCount++;
         }
 
         for (int i = 0; i < textures.Count; i++)
         {
             var tex = textures[i];
 
-            if (tex.isCompressed && !forceCompress)
-            {
-                continue;
-            }
+            GetPlatformsToProcess(tex, out bool doAndroid, out bool doPC);
+            if (!doAndroid && !doPC) continue;
 
             TextureImporter importer = AssetImporter.GetAtPath(tex.path) as TextureImporter;
             
@@ -430,25 +472,29 @@ public class TextureCompressionTool : EditorWindow
 
             EditorUtility.DisplayProgressBar("Compressing", $"{tex.name}...", (float)i / textures.Count);
 
-            var androidSettings = new TextureImporterPlatformSettings
+            if (doAndroid)
             {
-                name = "Android",
-                overridden = true,
-                maxTextureSize = androidMaxSize,
-                format = TextureImporterFormat.ASTC_6x6,
-                compressionQuality = 100
-            };
-            importer.SetPlatformTextureSettings(androidSettings);
+                importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings
+                {
+                    name = "Android",
+                    overridden = true,
+                    maxTextureSize = androidMaxSize,
+                    format = TextureImporterFormat.ASTC_6x6,
+                    compressionQuality = 100
+                });
+            }
 
-            var standaloneSettings = new TextureImporterPlatformSettings
+            if (doPC)
             {
-                name = "Standalone",
-                overridden = true,
-                maxTextureSize = pcMaxSize,
-                format = TextureImporterFormat.DXT5,
-                compressionQuality = 100
-            };
-            importer.SetPlatformTextureSettings(standaloneSettings);
+                importer.SetPlatformTextureSettings(new TextureImporterPlatformSettings
+                {
+                    name = "Standalone",
+                    overridden = true,
+                    maxTextureSize = pcMaxSize,
+                    format = TextureImporterFormat.DXT5,
+                    compressionQuality = 100
+                });
+            }
 
             importer.SaveAndReimport();
         }
@@ -510,6 +556,11 @@ public class TextureCompressionTool : EditorWindow
         public int currentSize;
         public float currentWeightMB;
         public bool isCompressed;
+        public int sourceSize;
+        public bool androidOverridden;
+        public int androidMax;
+        public bool pcOverridden;
+        public int pcMax;
     }
 }
 
